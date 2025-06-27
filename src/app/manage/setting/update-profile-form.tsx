@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,12 +12,19 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormField, FormItem, FormMessage } from '@/components/ui/form'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useAccountProfile } from '@/queries/useAccount'
+import { useAccountMe, useUpdateMeMutation } from '@/queries/useAccount'
+import { UploadMediaMutation } from '@/queries/useMedia'
+import { toast } from 'sonner'
+import { handleErrorApi } from '@/lib/utils'
+import { useRouter } from 'next/navigation'
+
 
 export default function UpdateProfileForm() {
-
+  const route = useRouter()
   const [ file, setFile] = useState<File | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
+  const updateMeMutation = useUpdateMeMutation()
+  const uploadMediaMutation = UploadMediaMutation()
   const form = useForm<UpdateMeBodyType>({
     resolver: zodResolver(UpdateMeBody),
     defaultValues: {
@@ -24,7 +32,7 @@ export default function UpdateProfileForm() {
       avatar: ''
     }
   })
-  const {data} = useAccountProfile()
+  const {data} = useAccountMe()
   const avatar = form.watch('avatar')
   useEffect(() => {
     if(data){
@@ -44,9 +52,43 @@ export default function UpdateProfileForm() {
   },[avatar ,file])
 
   const name = form.watch('name')
+
+  const reset = () => {
+    form.reset()
+    setFile(null)
+  }
+
+  const submit = async (values: UpdateMeBodyType) => {
+    if(updateMeMutation.isPending) return
+    try {
+      let body = values
+      if(file) {
+        const formData = new FormData()
+        formData.append('file', file)
+        const uploadImageRedult = await uploadMediaMutation.mutateAsync(formData)
+        const imageUrl = uploadImageRedult.payload.data
+        body= {
+          ...values,
+          avatar: imageUrl
+        }
+        const result = await updateMeMutation.mutateAsync(body)
+        toast.success(result.payload.message)
+        route.refresh()
+      }
+    }
+    catch (error: any) {
+      handleErrorApi({
+        error,
+        setError: form.setError,
+      })
+  }
+}
   return (
     <Form {...form}>
-      <form noValidate className='grid auto-rows-max items-start gap-4 md:gap-8'>
+      <form noValidate className='grid auto-rows-max items-start gap-4 md:gap-8'
+      onReset={reset}
+      onSubmit= {form.handleSubmit(submit)}
+      >
         <Card x-chunk='dashboard-07-chunk-0'>
           <CardHeader>
             <CardTitle>My Profile</CardTitle>
@@ -68,6 +110,7 @@ export default function UpdateProfileForm() {
                           const file = e.target.files?.[0]
                           if (file) {
                             setFile(file)
+                            field.onChange('http://localhost:3000/media/' + file.name) // Adjust this URL based on your media upload endpoint
                           }
                         }}
                       />
@@ -100,10 +143,10 @@ export default function UpdateProfileForm() {
 
               <div className=' items-center gap-2 md:ml-auto flex'>
                 <Button variant='outline' size='sm' type='reset'>
-                  Hủy
+                  cancel
                 </Button>
                 <Button size='sm' type='submit'>
-                  Lưu thông tin
+                  save
                 </Button>
               </div>
             </div>

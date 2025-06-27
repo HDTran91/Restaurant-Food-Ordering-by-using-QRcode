@@ -5,6 +5,5 @@ export const useAccountProfile = () => {
     return useQuery({
         queryKey: ['accountProfile'],
         queryFn: accountApiRequest.me
-
-        })
+    })
 }

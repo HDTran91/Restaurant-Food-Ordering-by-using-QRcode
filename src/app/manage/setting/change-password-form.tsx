@@ -8,8 +8,12 @@ import { useForm } from 'react-hook-form'
 import { ChangePasswordBody, ChangePasswordBodyType } from '@/schemaValidations/account.schema'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormField, FormItem, FormMessage } from '@/components/ui/form'
+import { useChangePasswordMutation } from '@/queries/useAccount'
+import { toast } from 'sonner'
+import { handleErrorApi } from '@/lib/utils'
 
 export default function ChangePasswordForm() {
+  const changePasswordMutation = useChangePasswordMutation()
   const form = useForm<ChangePasswordBodyType>({
     resolver: zodResolver(ChangePasswordBody),
     defaultValues: {
@@ -19,12 +23,32 @@ export default function ChangePasswordForm() {
     }
   })
 
+  const onSubmit = async (data: ChangePasswordBodyType) => {
+    if(changePasswordMutation.isPending) return
+    try {
+      const result = await changePasswordMutation.mutateAsync(data)
+      toast.success(result.payload.message)
+
+    }
+    catch (error) {
+      handleErrorApi({
+        error,
+        setError: form.setError,
+      })
+    }
+  }
+
+  const reset = ()=> {form.reset()}
+
   return (
     <Form {...form}>
-      <form noValidate className='grid auto-rows-max items-start gap-4 md:gap-8'>
+      <form noValidate className='grid auto-rows-max items-start gap-4 md:gap-8'
+      onSubmit={form.handleSubmit(onSubmit)}
+      onReset={reset}
+      >
         <Card className='overflow-hidden' x-chunk='dashboard-07-chunk-4'>
           <CardHeader>
-            <CardTitle>Đổi mật khẩu</CardTitle>
+            <CardTitle>Change Password</CardTitle>
             {/* <CardDescription>Lipsum dolor sit amet, consectetur adipiscing elit</CardDescription> */}
           </CardHeader>
           <CardContent>
@@ -35,8 +59,8 @@ export default function ChangePasswordForm() {
                 render={({ field }) => (
                   <FormItem>
                     <div className='grid gap-3'>
-                      <Label htmlFor='oldPassword'>Mật khẩu cũ</Label>
-                      <Input id='oldPassword' type='password' className='w-full' {...field} />
+                      <Label htmlFor='oldPassword'>Previous Password</Label>
+                      <Input autoComplete="current-password" id='oldPassword' type='password' className='w-full' {...field} />
                       <FormMessage />
                     </div>
                   </FormItem>
@@ -48,8 +72,8 @@ export default function ChangePasswordForm() {
                 render={({ field }) => (
                   <FormItem>
                     <div className='grid gap-3'>
-                      <Label htmlFor='password'>Mật khẩu mới</Label>
-                      <Input id='password' type='password' className='w-full' {...field} />
+                      <Label htmlFor='password'>New Password</Label>
+                      <Input autoComplete="new-password" id='password' type='password' className='w-full' {...field} />
                       <FormMessage />
                     </div>
                   </FormItem>
@@ -61,18 +85,18 @@ export default function ChangePasswordForm() {
                 render={({ field }) => (
                   <FormItem>
                     <div className='grid gap-3'>
-                      <Label htmlFor='confirmPassword'>Nhập lại mật khẩu mới</Label>
-                      <Input id='confirmPassword' type='password' className='w-full' {...field} />
+                      <Label htmlFor='confirmPassword'>Confirm Password</Label>
+                      <Input autoComplete="new-password" id='confirmPassword' type='password' className='w-full' {...field} />
                       <FormMessage />
                     </div>
                   </FormItem>
                 )}
               />
               <div className=' items-center gap-2 md:ml-auto flex'>
-                <Button variant='outline' size='sm'>
-                  Hủy
+                <Button type="reset" variant='outline' size='sm'>
+                  Cancel
                 </Button>
-                <Button size='sm'>Lưu thông tin</Button>
+                <Button type="submit" size='sm'>Save</Button>
               </div>
             </div>
           </CardContent>

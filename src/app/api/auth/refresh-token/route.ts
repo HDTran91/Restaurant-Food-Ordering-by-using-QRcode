@@ -28,7 +28,7 @@ export async function POST(request: Request) {
             secure: true,
             expires: new Date(decodedAccessToken.exp * 1000)
         })
-        cookieStore.set('refreshToken', payload.data.accessToken, {
+        cookieStore.set('refreshToken', payload.data.refreshToken, {
             path: '/',
             httpOnly: true,
             sameSite: 'lax',

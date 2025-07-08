@@ -12,23 +12,25 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { use } from 'react'
 import { useLogoutMutation } from '@/queries/useAuth'
-import { log } from 'console'
 import { handleErrorApi } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { useAccountMe } from '@/queries/useAccount'
+import { useAppContext } from '@/components/app-provider'
+import { set } from 'zod'
 
 
 export default function DropdownAvatar() {
   const logoutMutation = useLogoutMutation()
   const router = useRouter()
   const {data} = useAccountMe()
+  const {setIsAuth} = useAppContext()
   const account = data?.payload.data
   const logout = async () => {
     if(logoutMutation.isPending) return
     try {
       await logoutMutation.mutateAsync()
+      setIsAuth(false)
       router.push('/')
     } catch (error: any) {
       handleErrorApi ({

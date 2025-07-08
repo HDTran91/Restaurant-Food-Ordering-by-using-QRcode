@@ -10,11 +10,22 @@ import { zodResolver } from '@hookform/resolvers/zod'
 
 import { useLoginMutation } from '@/queries/useAuth'
 import { toast } from 'sonner'
-import { handleErrorApi } from '@/lib/utils'
-import { useRouter } from 'next/navigation'
+import { handleErrorApi} from '@/lib/utils'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect } from 'react'
+
+import { useAppContext } from '@/components/app-provider'
 
 export default function LoginForm() {
+  const searchParams = useSearchParams()
+  const clearTokens = searchParams.get('clearToken')
+  const {setIsAuth} = useAppContext()
   const router = useRouter()
+  useEffect(() => {
+    if(clearTokens) {
+      setIsAuth(false)
+    }
+  }, [clearTokens, setIsAuth])
 
   const loginMutation = useLoginMutation()
   const form = useForm<LoginBodyType>({

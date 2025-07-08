@@ -20,7 +20,11 @@ export default function RefreshTokenPage() {
                 },
 
             })
+        } else {
+            // If the refresh token from the URL does not match the one in local storage, redirect to login
+            router.push('/')
         }
+
 
     },[router, refreshTokenFromUrl, redirectPathName])
     return <div>Refresh Token</div>

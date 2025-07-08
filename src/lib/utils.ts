@@ -54,7 +54,7 @@ export const setAccessTokenToLocalStorage = (value: string) =>
 export const setRefreshTokenToLocalStorage = (value: string) =>
   isBrowser && localStorage.setItem('refreshToken', value)
 
-export const removeTokenFromLocalStorage = () => {
+export const removeTokensFromLocalStorage = () => {
   if (isBrowser) localStorage.removeItem('accessToken')
   if (isBrowser) localStorage.removeItem('refreshToken')
 }
@@ -74,7 +74,7 @@ export const checkAndRefreshToken = async (param?:{
         const decodedRefreshToken = jwt.decode(refreshToken) as {exp: number, iat: number}
         const now = (new Date().getTime() / 1000) -1  // Current time in seconds
         if(decodedRefreshToken.exp <= now) {
-          removeTokenFromLocalStorage()
+          removeTokensFromLocalStorage()
           if (param?.onError) {
             param.onError();
           }

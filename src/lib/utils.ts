@@ -54,6 +54,11 @@ export const setAccessTokenToLocalStorage = (value: string) =>
 export const setRefreshTokenToLocalStorage = (value: string) =>
   isBrowser && localStorage.setItem('refreshToken', value)
 
+export const removeTokenFromLocalStorage = () => {
+  if (isBrowser) localStorage.removeItem('accessToken')
+  if (isBrowser) localStorage.removeItem('refreshToken')
+}
+
 export const checkAndRefreshToken = async (param?:{
       onError?: () => void
       onSuccess?: () => void
@@ -67,8 +72,14 @@ export const checkAndRefreshToken = async (param?:{
         }
         const decodedAccessToken = jwt.decode(accessToken) as {exp: number, iat: number}
         const decodedRefreshToken = jwt.decode(refreshToken) as {exp: number, iat: number}
-        const now = Math.round(new Date().getTime() / 1000) // Current time in seconds
-        if(decodedRefreshToken.exp <= now) return
+        const now = (new Date().getTime() / 1000) -1  // Current time in seconds
+        if(decodedRefreshToken.exp <= now) {
+          removeTokenFromLocalStorage()
+          if (param?.onError) {
+            param.onError();
+          }
+          return
+        }
         if(decodedAccessToken.exp - now < (decodedAccessToken.exp - decodedAccessToken.iat)/3 ) {
             try {
                 const res= await authApiRequest.refreshToken()

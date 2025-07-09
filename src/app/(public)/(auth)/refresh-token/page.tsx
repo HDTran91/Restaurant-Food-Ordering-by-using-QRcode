@@ -4,9 +4,9 @@
 import { checkAndRefreshToken, getRefreshTokenFromLocalStorage } from '@/lib/utils'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useRef } from 'react'
+import { Suspense } from 'react'
 
-
-export default function RefreshTokenPage() {
+function RefreshToken() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const refreshTokenFromUrl = searchParams.get('refreshToken')
@@ -28,4 +28,13 @@ export default function RefreshTokenPage() {
 
     },[router, refreshTokenFromUrl, redirectPathName])
     return <div>Refresh Token</div>
+}
+
+
+export default function RefreshTokenPage() {
+    return(
+    <Suspense fallback={<div>Loading...</div>}>
+        <RefreshToken />
+    </Suspense>
+    )
 }

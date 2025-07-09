@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,14 +15,20 @@ import { Label } from '@/components/ui/label'
 import { CreateEmployeeAccountBody, CreateEmployeeAccountBodyType } from '@/schemaValidations/account.schema'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { PlusCircle, Upload } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import {useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Form, FormField, FormItem, FormMessage } from '@/components/ui/form'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { useAddAccountMutation } from '@/queries/useAccount'
+import { UploadMediaMutation } from '@/queries/useMedia'
+import { toast } from 'sonner'
+import { handleErrorApi } from '@/lib/utils'
 
 export default function AddEmployee() {
   const [file, setFile] = useState<File | null>(null)
   const [open, setOpen] = useState(false)
+  const addAccountMutation = useAddAccountMutation()
+  const uploadMediaMutation = UploadMediaMutation()
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
   const form = useForm<CreateEmployeeAccountBodyType>({
     resolver: zodResolver(CreateEmployeeAccountBody),
@@ -42,6 +49,38 @@ export default function AddEmployee() {
     return avatar
   }, [file, avatar])
 
+  const reset = () => {
+    form.reset()
+    setFile(null)
+  }
+
+
+  const submit = async (values: CreateEmployeeAccountBodyType ) => {
+    if(addAccountMutation.isPending) return
+    try {
+      let body = values
+      if(file) {
+        const formData = new FormData()
+        formData.append('file', file)
+        const uploadImageRedult = await uploadMediaMutation.mutateAsync(formData)
+        const imageUrl = uploadImageRedult.payload.data
+        body= {
+          ...values,
+          avatar: imageUrl
+        }
+        const result = await addAccountMutation.mutateAsync(body)
+        toast.success(result.payload.message)
+        reset()
+        setOpen(false)
+      }
+    }
+    catch (error: any) {
+      handleErrorApi({
+        error,
+        setError: form.setError,
+      })
+    }
+  }
   return (
     <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
@@ -56,7 +95,9 @@ export default function AddEmployee() {
           <DialogDescription>name, email, password are required</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form noValidate className='grid auto-rows-max items-start gap-4 md:gap-8' id='add-employee-form'>
+          <form noValidate className='grid auto-rows-max items-start gap-4 md:gap-8' id='add-employee-form'
+            onSubmit = {form.handleSubmit(submit)}
+          >
             <div className='grid gap-4 py-4'>
               <FormField
                 control={form.control}

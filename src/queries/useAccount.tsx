@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import accountApiRequest from "@/apiRequests/account"
 import { UpdateEmployeeAccountBodyType } from "@/schemaValidations/account.schema"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -32,11 +33,11 @@ export const useGetAccountList = () => {
     })
 }
 
-export const useGetAccount = (id: number) => {
+export const useGetAccount = ({id, enabled}: {id: number, enabled: boolean}) => {
     return useQuery({
         queryKey: ['account', id],
         queryFn: () => accountApiRequest.getEmployee(id),
-        enabled: !!id
+        enabled
     })
 }
 
@@ -60,7 +61,9 @@ export const useUpdateAccountMutation = () => {
                 confirmPassword: confirmPassword ?? ""
             }),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['accounts'] })
+            queryClient.invalidateQueries({ queryKey: ['accounts'],
+                exact: true,
+             })
         }
     })
 }

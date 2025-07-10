@@ -54,10 +54,10 @@ export const UpdateEmployeeAccountBody = z
     name: z.string().trim().min(2).max(256),
     email: z.string().email(),
     avatar: z.string().url().optional(),
-    changePassword: z.boolean().optional(),
+    changePassword: z.boolean().default(false),  // default false so it's always defined
     password: z.string().min(6).max(100).optional(),
     confirmPassword: z.string().min(6).max(100).optional(),
-    role: z.enum([Role.Owner, Role.Employee]).optional().default(Role.Employee)
+    role: z.enum([Role.Owner, Role.Employee]).optional().default(Role.Employee),
   })
   .strict()
   .superRefine(({ confirmPassword, password, changePassword }, ctx) => {
@@ -66,17 +66,18 @@ export const UpdateEmployeeAccountBody = z
         ctx.addIssue({
           code: 'custom',
           message: 'Hãy nhập mật khẩu mới và xác nhận mật khẩu mới',
-          path: ['changePassword']
+          path: ['changePassword'],
         })
       } else if (confirmPassword !== password) {
         ctx.addIssue({
           code: 'custom',
           message: 'Mật khẩu không khớp',
-          path: ['confirmPassword']
+          path: ['confirmPassword'],
         })
       }
     }
   })
+
 
 export type UpdateEmployeeAccountBodyType = z.TypeOf<typeof UpdateEmployeeAccountBody>
 

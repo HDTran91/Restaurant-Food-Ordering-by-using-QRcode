@@ -54,7 +54,7 @@ export const UpdateEmployeeAccountBody = z
     name: z.string().trim().min(2).max(256),
     email: z.string().email(),
     avatar: z.string().url().optional(),
-    changePassword: z.boolean().default(false),  // default false so it's always defined
+    changePassword: z.boolean().default(false),  
     password: z.string().min(6).max(100).optional(),
     confirmPassword: z.string().min(6).max(100).optional(),
     role: z.enum([Role.Owner, Role.Employee]).optional().default(Role.Employee),

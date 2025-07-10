@@ -46,7 +46,9 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useSearchParams } from 'next/navigation'
 import AutoPagination from '@/components/auto-pagination'
-import { useGetAccountList } from '@/queries/useAccount'
+import { useDeleteAccountMutation, useGetAccountList } from '@/queries/useAccount'
+import { toast, Toaster } from 'sonner'
+import { handleErrorApi } from '@/lib/utils'
 type AccountItem = AccountListResType['data'][0]
 
 const AccountTableContext = createContext<{
@@ -140,6 +142,19 @@ function AlertDialogDeleteAccount({
   employeeDelete: AccountItem | null
   setEmployeeDelete: (value: AccountItem | null) => void
 }) {
+  const {mutateAsync} = useDeleteAccountMutation()
+  const deleteAccount = async () => {
+    if (!employeeDelete) return
+    try {
+      await mutateAsync(employeeDelete.id)
+      setEmployeeDelete(null)
+      toast.success(`Đã xóa tài khoản ${employeeDelete.name} thành công`)
+    } catch (error) {
+      handleErrorApi({
+        error
+      })
+    }
+  }
   return (
     <AlertDialog
       open={Boolean(employeeDelete)}
@@ -159,7 +174,7 @@ function AlertDialogDeleteAccount({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction>Continue</AlertDialogAction>
+          <AlertDialogAction onClick={deleteAccount}>Continue</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

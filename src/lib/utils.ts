@@ -9,6 +9,7 @@ import jwt from "jsonwebtoken"
 import authApiRequest from "@/apiRequests/auth"
 import { DishStatus, OrderStatus, TableStatus } from "@/constants/type"
 import envConfig from "@/config"
+import slugify from 'slugify'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -146,4 +147,12 @@ export const formatCurrency = (number: number) => {
 
 export const getTableLink = ({ token, tableNumber }: { token: string; tableNumber: number }) => {
   return envConfig.NEXT_PUBLIC_URL + '/tables/' + tableNumber + '?token=' + token
+}
+
+export const generateSlugUrl = ({ name, id }: { name: string; id: number }) => {
+  return `${slugify(name)}-i.${id}`
+}
+
+export const getIdFromSlugUrl = (slug: string) => {
+  return Number(slug.split('-i.')[1])
 }

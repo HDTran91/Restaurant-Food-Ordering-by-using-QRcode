@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,15 +13,34 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Upload } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage
+} from '@/components/ui/form'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getVietnameseDishStatus, handleErrorApi } from '@/lib/utils'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { UpdateDishBody, UpdateDishBodyType } from '@/schemaValidations/dish.schema'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import {
+  UpdateDishBody,
+  UpdateDishBodyType
+} from '@/schemaValidations/dish.schema'
 import { DishStatus, DishStatusValues } from '@/constants/type'
 import { Textarea } from '@/components/ui/textarea'
+import { UploadMediaMutation} from '@/queries/useMedia'
+import { useGetDishQuery, useUpdateDishMutation } from '@/queries/useDish'
+import { toast } from 'sonner'
+import revalidateApiRequest from '@/apiRequests/revalidate'
 
 export default function EditDish({
   id,
@@ -34,40 +53,103 @@ export default function EditDish({
 }) {
   const [file, setFile] = useState<File | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
+  const uploadMediaMutation = UploadMediaMutation()
+  const updateDishMutation = useUpdateDishMutation()
+  const { data } = useGetDishQuery({ enabled: Boolean(id), id: id as number })
   const form = useForm<UpdateDishBodyType>({
     resolver: zodResolver(UpdateDishBody),
     defaultValues: {
       name: '',
       description: '',
       price: 0,
-      image: '',
+      image: undefined,
       status: DishStatus.Unavailable
     }
   })
   const image = form.watch('image')
   const name = form.watch('name')
+
   const previewAvatarFromFile = useMemo(() => {
     if (file) {
       return URL.createObjectURL(file)
     }
     return image
   }, [file, image])
+
+  useEffect(() => {
+    if (data) {
+
+      const { name, image, description, price, status } = data.payload.data as any
+      form.reset({
+        name,
+        image: image ?? undefined,
+        description,
+        price,
+        status
+      })
+    }
+  }, [data, form])
+  const onSubmit = async (values: UpdateDishBodyType) => {
+    if (updateDishMutation.isPending) return
+    try {
+      let body: UpdateDishBodyType & { id: number } = {
+        id: id as number,
+        ...values
+      }
+      if (file) {
+        const formData = new FormData()
+        formData.append('file', file)
+        const uploadImageResult = await uploadMediaMutation.mutateAsync(
+          formData
+        )
+        const imageUrl = uploadImageResult.payload.data
+        body = {
+          ...body,
+          image: imageUrl
+        }
+      }
+      const result = await updateDishMutation.mutateAsync(body)
+      await revalidateApiRequest('dishes')
+      toast.success(`Đã cập nhật món ăn ${result.payload.data.name} thành công`)
+      reset()
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      onSubmitSuccess && onSubmitSuccess()
+    } catch (error) {
+      handleErrorApi({
+        error,
+        setError: form.setError
+      })
+    }
+  }
+
+  const reset = () => {
+    setId(undefined)
+    setFile(null)
+  }
+
   return (
     <Dialog
       open={Boolean(id)}
       onOpenChange={(value) => {
         if (!value) {
-          setId(undefined)
+          reset()
         }
       }}
     >
       <DialogContent className='sm:max-w-[600px] max-h-screen overflow-auto'>
         <DialogHeader>
           <DialogTitle>Cập nhật món ăn</DialogTitle>
-          <DialogDescription>Các trường sau đây là bắ buộc: Tên, ảnh</DialogDescription>
+          <DialogDescription>
+            Các trường sau đây là bắ buộc: Tên, ảnh
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form noValidate className='grid auto-rows-max items-start gap-4 md:gap-8' id='edit-dish-form'>
+          <form
+            noValidate
+            className='grid auto-rows-max items-start gap-4 md:gap-8'
+            id='edit-dish-form'
+            onSubmit={form.handleSubmit(onSubmit, console.log)}
+          >
             <div className='grid gap-4 py-4'>
               <FormField
                 control={form.control}
@@ -77,7 +159,9 @@ export default function EditDish({
                     <div className='flex gap-2 items-start justify-start'>
                       <Avatar className='aspect-square w-[100px] h-[100px] rounded-md object-cover'>
                         <AvatarImage src={previewAvatarFromFile} />
-                        <AvatarFallback className='rounded-none'>{name || 'Avatar'}</AvatarFallback>
+                        <AvatarFallback className='rounded-none'>
+                          {name || 'Avatar'}
+                        </AvatarFallback>
                       </Avatar>
                       <input
                         type='file'
@@ -128,7 +212,12 @@ export default function EditDish({
                     <div className='grid grid-cols-4 items-center justify-items-start gap-4'>
                       <Label htmlFor='price'>Giá</Label>
                       <div className='col-span-3 w-full space-y-2'>
-                        <Input id='price' className='w-full' {...field} type='number' />
+                        <Input
+                          id='price'
+                          className='w-full'
+                          {...field}
+                          type='number'
+                        />
                         <FormMessage />
                       </div>
                     </div>
@@ -143,7 +232,11 @@ export default function EditDish({
                     <div className='grid grid-cols-4 items-center justify-items-start gap-4'>
                       <Label htmlFor='description'>Mô tả sản phẩm</Label>
                       <div className='col-span-3 w-full space-y-2'>
-                        <Textarea id='description' className='w-full' {...field} />
+                        <Textarea
+                          id='description'
+                          className='w-full'
+                          {...field}
+                        />
                         <FormMessage />
                       </div>
                     </div>
@@ -158,7 +251,11 @@ export default function EditDish({
                     <div className='grid grid-cols-4 items-center justify-items-start gap-4'>
                       <Label htmlFor='description'>Trạng thái</Label>
                       <div className='col-span-3 w-full space-y-2'>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          value={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder='Chọn trạng thái' />

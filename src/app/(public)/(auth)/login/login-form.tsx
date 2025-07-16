@@ -19,13 +19,13 @@ import { useAppContext } from '@/components/app-provider'
 export default function LoginForm() {
   const searchParams = useSearchParams()
   const clearTokens = searchParams.get('clearToken')
-  const {setIsAuth} = useAppContext()
+  const {setRole} = useAppContext()
   const router = useRouter()
   useEffect(() => {
     if(clearTokens) {
-      setIsAuth(false)
+      setRole(undefined)
     }
-  }, [clearTokens, setIsAuth])
+  }, [clearTokens, setRole])
 
   const loginMutation = useLoginMutation()
   const form = useForm<LoginBodyType>({
@@ -40,7 +40,7 @@ export default function LoginForm() {
     try {
       const result = await loginMutation.mutateAsync(data)
       toast.success(result.payload.message)
-      setIsAuth(true)
+      setRole(result.payload.data.account.role)
       router.push('/manage/dashboard')
     } catch(error: unknown) {
       handleErrorApi({

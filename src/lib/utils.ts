@@ -10,6 +10,7 @@ import authApiRequest from "@/apiRequests/auth"
 import { DishStatus, OrderStatus, TableStatus } from "@/constants/type"
 import envConfig from "@/config"
 import slugify from 'slugify'
+import { TokenPayload } from "@/types/jwt.types"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -73,8 +74,8 @@ export const checkAndRefreshToken = async (param?:{
           // If either token is missing, we don't need to refresh
           return
         }
-        const decodedAccessToken = jwt.decode(accessToken) as {exp: number, iat: number}
-        const decodedRefreshToken = jwt.decode(refreshToken) as {exp: number, iat: number}
+        const decodedAccessToken = decodeToken(accessToken)
+        const decodedRefreshToken = decodeToken(refreshToken)
         const now = (new Date().getTime() / 1000) -1  // Current time in seconds
         if(decodedRefreshToken.exp <= now) {
           removeTokensFromLocalStorage()
@@ -155,4 +156,8 @@ export const generateSlugUrl = ({ name, id }: { name: string; id: number }) => {
 
 export const getIdFromSlugUrl = (slug: string) => {
   return Number(slug.split('-i.')[1])
+}
+
+export const decodeToken = (token: string) => {
+  return jwt.decode(token) as TokenPayload
 }

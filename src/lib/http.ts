@@ -1,9 +1,16 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import envConfig from '@/config'
-import { normalizePath } from '@/lib/utils'
+import envConfig, { defaultLocale } from '@/config'
+import {
+  getAccessTokenFromLocalStorage,
+  normalizePath,
+  removeTokensFromLocalStorage,
+  setAccessTokenToLocalStorage,
+  setRefreshTokenToLocalStorage
+} from '@/lib/utils'
 import { LoginResType } from '@/schemaValidations/auth.schema'
-import { redirect } from 'next/navigation'
-
+import { redirect } from '@/i18n/routing'
+import Cookies from 'js-cookie'
 type CustomOptions = Omit<RequestInit, 'method'> & {
   baseUrl?: string | undefined
 }
@@ -25,7 +32,15 @@ export class HttpError extends Error {
     message: string
     [key: string]: any
   }
-  constructor({ status, payload, message= "HTTP Error" }: { status: number; payload: any, message?: string }) {
+  constructor({
+    status,
+    payload,
+    message = 'Lỗi HTTP'
+  }: {
+    status: number
+    payload: any
+    message?: string
+  }) {
     super(message)
     this.status = status
     this.payload = payload
@@ -42,7 +57,7 @@ export class EntityError extends HttpError {
     status: typeof ENTITY_ERROR_STATUS
     payload: EntityErrorPayload
   }) {
-    super({ status, payload, message: 'Entity Error' })
+    super({ status, payload, message: 'Lỗi thực thể' })
     this.status = status
     this.payload = payload
   }
@@ -70,7 +85,7 @@ const request = async <Response>(
           'Content-Type': 'application/json'
         }
   if (isClient) {
-    const accessToken = localStorage.getItem('accessToken')
+    const accessToken = getAccessTokenFromLocalStorage()
     if (accessToken) {
       baseHeaders.Authorization = `Bearer ${accessToken}`
     }
@@ -83,8 +98,7 @@ const request = async <Response>(
       ? envConfig.NEXT_PUBLIC_API_ENDPOINT
       : options.baseUrl
 
-  const fullUrl = url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`
-
+  const fullUrl = `${baseUrl}/${normalizePath(url)}`
   const res = await fetch(fullUrl, {
     ...options,
     headers: {
@@ -99,6 +113,7 @@ const request = async <Response>(
     status: res.status,
     payload
   }
+
   // Interceptor là nời chúng ta xử lý request và response trước khi trả về cho phía component
   if (!res.ok) {
     if (res.status === ENTITY_ERROR_STATUS) {
@@ -110,10 +125,11 @@ const request = async <Response>(
       )
     } else if (res.status === AUTHENTICATION_ERROR_STATUS) {
       if (isClient) {
+        const locale = Cookies.get('NEXT_LOCALE')
         if (!clientLogoutRequest) {
           clientLogoutRequest = fetch('/api/auth/logout', {
-            method: 'POST', //always allow logout successfully
-            body: null,
+            method: 'POST',
+            body: null, // Logout mình sẽ cho phép luôn luôn thành công
             headers: {
               ...baseHeaders
             } as any
@@ -121,20 +137,27 @@ const request = async <Response>(
           try {
             await clientLogoutRequest
           } catch (error) {
-            console.log('Logout request failed:', error)
           } finally {
-            localStorage.removeItem('accessToken')
-            localStorage.removeItem('refreshToken')
+            removeTokensFromLocalStorage()
             clientLogoutRequest = null
-            //Redirect to login page can lead to infinite loop if we dont handle it properly
-            location.href = '/login'
+            // Redirect về trang login có thể dẫn đến loop vô hạn
+            // Nếu không không được xử lý đúng cách
+            // Vì nếu rơi vào trường hợp tại trang Login, chúng ta có gọi các API cần access token
+            // Mà access token đã bị xóa thì nó lại nhảy vào đây, và cứ thế nó sẽ bị lặp
+            location.href = `/${locale}/login`
           }
         }
       } else {
+        // Đây là trường hợp khi mà chúng ta vẫn còn access token (còn hạn)
+        // Và chúng ta gọi API ở Next.js Server (Route Handler , Server Component) đến Server Backend
         const accessToken = (options?.headers as any)?.Authorization.split(
           'Bearer '
         )[1]
-        redirect(`/logout?accessToken=${accessToken}`)
+        const locale = Cookies.get('NEXT_LOCALE')
+        redirect({
+          href: `/login?accessToken=${accessToken}`,
+          locale: locale ?? defaultLocale
+        })
       }
     } else {
       throw new HttpError(data)
@@ -143,15 +166,22 @@ const request = async <Response>(
   // Đảm bảo logic dưới đây chỉ chạy ở phía client (browser)
   if (isClient) {
     const normalizeUrl = normalizePath(url)
-    if (
-      normalizeUrl === 'api/auth/login'
-    ) {
+    console.log('normalizeUrl', normalizeUrl)
+    if (['api/auth/login', 'api/guest/auth/login'].includes(normalizeUrl)) {
       const { accessToken, refreshToken } = (payload as LoginResType).data
-      localStorage.setItem('accessToken', accessToken)
-      localStorage.setItem('refreshToken', refreshToken )
-    } else if (normalizeUrl === 'api/auth/logout') {
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('refreshToken')
+      setAccessTokenToLocalStorage(accessToken)
+      setRefreshTokenToLocalStorage(refreshToken)
+    } else if ('api/auth/token' === normalizeUrl) {
+      const { accessToken, refreshToken } = payload as {
+        accessToken: string
+        refreshToken: string
+      }
+      setAccessTokenToLocalStorage(accessToken)
+      setRefreshTokenToLocalStorage(refreshToken)
+    } else if (
+      ['api/auth/logout', 'api/guest/auth/logout'].includes(normalizeUrl)
+    ) {
+      removeTokensFromLocalStorage()
     }
   }
   return data

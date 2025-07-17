@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { access } from 'fs'
+import { Role } from '@/constants/type'
+import { decodeToken } from '@/lib/utils'
 import { NextResponse, NextRequest } from 'next/server'
 
-
-const privatePaths = ['/manage']
+const managePaths = ['manage']
+const guestPaths = ['/guest']
+const privatePaths = [...managePaths, ...guestPaths]
 const unAuthPaths = ['/login']
 
 export function middleware(request: NextRequest) {
@@ -16,24 +18,36 @@ export function middleware(request: NextRequest) {
       url.searchParams.set('clearToken', 'true')
       return NextResponse.redirect(url)
     }
-    //not login yet, not allow to access private paths
 
-    if (unAuthPaths.some(path => pathname.startsWith(path)) && refreshToken) {
+    if (refreshToken) {
+      //not login yet, not allow to access private paths
+
+      if (unAuthPaths.some(path => pathname.startsWith(path)) && refreshToken) {
       return NextResponse.redirect(new URL('/', request.url))
-    }
-
-    // already login, accessToken is expired
-    if (privatePaths.some(path => pathname.startsWith(path)) && !accessToken && refreshToken) {
-      const url = new URL('/refresh-token', request.url)
-      url.searchParams.set('refreshToken',refreshToken)
-      url.searchParams.set('redirect', pathname)
-      return NextResponse.redirect(url)
+      }
+        // already login, accessToken is expired
+      if (privatePaths.some(path => pathname.startsWith(path)) && !accessToken && refreshToken) {
+        const url = new URL('/refresh-token', request.url)
+        url.searchParams.set('refreshToken',refreshToken)
+        url.searchParams.set('redirect', pathname)
+        return NextResponse.redirect(url)
 
       }
-      return NextResponse.next()
+      // not right role, redirect to home page
+      const role = decodeToken(refreshToken).role
 
+      //guest but try to access manage paths
+      const isGuestGotoManage = role === Role.Guest && managePaths.some(path => pathname.startsWith(path))
+
+      // not guest but try to access guest paths
+      const isNotGuestGotoGuest = role !== Role.Guest && guestPaths.some(path => pathname.startsWith(path))
+      if (isNotGuestGotoGuest || isGuestGotoManage) {
+        return NextResponse.redirect(new URL('/', request.url))
+      }
+      return NextResponse.next()
+    }
 }
 
 export const config = {
-  matcher: ['/manage/:path*','/login']
+  matcher: ['/manage/:path*','/guest/:path*','/login']
 }

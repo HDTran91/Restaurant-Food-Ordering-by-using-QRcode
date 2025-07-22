@@ -6,27 +6,42 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useDishListQuery } from '@/queries/useDish'
 import { formatCurrency } from '@/lib/utils'
+import Quantity from '@/app/guest/menu/quantity'
+import { GuestCreateOrdersBodyType } from '@/schemaValidations/guest.schema'
+import { use, useMemo, useState } from 'react'
+import { format } from 'path'
 
-// fake data
-const dishes = [
-  {
-    id: 1,
-    name: 'Pizza hải sản',
-    description: 'Pizza hải sản ngon nhất thế giới',
-    price: 100000,
-    image: '/SeafoodPizza.jpg'
-  },
-  {
-    id: 2,
-    name: 'Pizza thịt bò',
-    description: 'Pizza thịt bò ngon nhất thế giới',
-    price: 150000,
-    image: '/BeefPizza.jpg'
-  }
-]
 export default function MenuOrder() {
     const {data} = useDishListQuery()
-    const dishes = data?.payload.data ?? []
+    const dishes = useMemo(() => data?.payload.data ?? [], [data])
+    const [order, setOrder] = useState<GuestCreateOrdersBodyType>([])
+    const totalPrice = useMemo(() => {
+        return dishes.reduce((total, dish) => {
+            const orderItem = order.find(item => item.dishId === dish.id)
+            if (orderItem) {
+                return total + (dish.price * orderItem.quantity)
+            }
+            return total
+        }, 0)
+    }, [dishes, order])
+
+    const handleQuantityChange = (dishId: number, quantity: number) => {
+        setOrder((prevOrder) => {
+            if (quantity === 0) {
+                return prevOrder.filter(item => item.dishId !== dishId)
+            }
+            const index = prevOrder.findIndex(order => order.dishId === dishId)
+            if (index == -1) {
+                return [...prevOrder, { dishId, quantity }]
+            } else {
+                const newOrder = [...prevOrder]
+                newOrder[index] = {...newOrder[index], quantity }
+                return newOrder
+
+            }
+        })
+    }
+    console.log('order', order)
   return (
     <>
      {dishes.map((dish) => (
@@ -47,22 +62,19 @@ export default function MenuOrder() {
             <p className='text-xs font-semibold'>{formatCurrency(dish.price)}</p>
           </div>
           <div className='flex-shrink-0 ml-auto flex justify-center items-center'>
-            <div className='flex gap-1 '>
-              <Button className='h-6 w-6 p-0'>
-                <Minus className='w-3 h-3' />
-              </Button>
-              <Input type='text' readOnly className='h-6 p-1 w-8' />
-              <Button className='h-6 w-6 p-0'>
-                <Plus className='w-3 h-3' />
-              </Button>
-            </div>
+            <Quantity
+              onChange={(value) => {
+                handleQuantityChange(dish.id, value)
+              }}
+              value={order.find(item => item.dishId === dish.id)?.quantity ?? 0}
+            />
           </div>
         </div>
       ))}
       <div className='sticky bottom-0'>
         <Button className='w-full justify-between'>
-          <span>Giỏ hàng · 2 món</span>
-          <span>100,000 đ</span>
+          <span>Giỏ hàng · {order.length} món</span>
+          <span>{formatCurrency(totalPrice)}</span>
         </Button>
       </div>
     </>

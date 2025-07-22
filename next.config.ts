@@ -1,3 +1,4 @@
+
 /**
  * @type {import('next').NextConfig}
  */
@@ -16,6 +17,11 @@ const nextConfig = {
         hostname: 'api-bigboy.duthanhduoc.com',
         port: '',
         pathname: '/static/**'
+      },
+
+      {
+        hostname: 'via.placeholder.com',
+        pathname: '/**',
       }
     ],
   },

@@ -5,16 +5,21 @@ import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useDishListQuery } from '@/queries/useDish'
-import { formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency, handleErrorApi } from '@/lib/utils'
 import Quantity from '@/app/guest/menu/quantity'
 import { GuestCreateOrdersBodyType } from '@/schemaValidations/guest.schema'
 import { use, useMemo, useState } from 'react'
 import { format } from 'path'
+import { useGuestOrderMutation } from '@/queries/useGuest'
+import { useRouter } from 'next/navigation'
+import { DishStatus } from '@/constants/type'
 
 export default function MenuOrder() {
     const {data} = useDishListQuery()
     const dishes = useMemo(() => data?.payload.data ?? [], [data])
     const [order, setOrder] = useState<GuestCreateOrdersBodyType>([])
+    const {mutateAsync} = useGuestOrderMutation()
+    const route = useRouter()
     const totalPrice = useMemo(() => {
         return dishes.reduce((total, dish) => {
             const orderItem = order.find(item => item.dishId === dish.id)
@@ -41,12 +46,25 @@ export default function MenuOrder() {
             }
         })
     }
-    console.log('order', order)
+ const handleOrder = async() => {
+    try {
+        const result = await mutateAsync(order)
+        route.push('/guest/orders')
+    }
+    catch(error) {
+        handleErrorApi({ error })
+    }
+ }
   return (
     <>
-     {dishes.map((dish) => (
-        <div key={dish.id} className='flex gap-4'>
-          <div className='flex-shrink-0'>
+     {dishes
+     .filter((dish) => dish.status !== DishStatus.Hidden)
+     .map((dish) => (
+        <div key={dish.id} className={cn('flex gap-4', { 'pointer-events-none': dish.status === DishStatus.Unavailable })}>
+          <div className='flex-shrink-0 relative'>
+            <span className ='absolute inset-0 flex items-center justify-center text-sm'>
+                {dish.status === DishStatus.Unavailable && <span>Out of Order</span>}
+            </span>
             <Image
               src={dish.image}
               alt={dish.name}
@@ -72,7 +90,7 @@ export default function MenuOrder() {
         </div>
       ))}
       <div className='sticky bottom-0'>
-        <Button className='w-full justify-between'>
+        <Button className='w-full justify-between' onClick={handleOrder} disabled={order.length === 0}>
           <span>Giỏ hàng · {order.length} món</span>
           <span>{formatCurrency(totalPrice)}</span>
         </Button>

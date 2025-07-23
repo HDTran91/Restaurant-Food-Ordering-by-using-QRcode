@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { formatCurrency, getVietnameseOrderStatus } from '@/lib/utils'
 import socket from '@/lib/socket'
 import { UpdateOrderBodyType, UpdateOrderResType } from '@/schemaValidations/order.schema'
+import { toast } from 'sonner'
 
 
 
@@ -35,6 +36,7 @@ export default function OrdersCart() {
     }
 
     function onUpdatedOrders(data: UpdateOrderResType['data']) {
+      toast.success(`Cập nhật ${name} thành công`)
       refetch()
     }
 

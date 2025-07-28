@@ -32,6 +32,9 @@ import { Button } from '@/components/ui/button'
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { endOfDay, format, startOfDay } from 'date-fns'
+import { useGetOrderListQuery } from '@/queries/useOrder'
+import { useTableListQuery } from '@/queries/useTable'
+import TableSkeleton from '@/app/manage/orders/table-skeleton'
 
 
 export const OrderTableContext = createContext({
@@ -65,9 +68,14 @@ export default function OrderTable() {
   const page = searchParam.get('page') ? Number(searchParam.get('page')) : 1
   const pageIndex = page - 1
   const [orderIdEdit, setOrderIdEdit] = useState<number | undefined>()
-  const orderList: any = []
-  const tableList: any = []
-  const tableListSortedByNumber = tableList.sort((a: any, b: any) => a.number - b.number)
+  const orderListQuery = useGetOrderListQuery({
+    fromDate,
+    toDate
+  })
+  const orderList = orderListQuery.data?.payload.data ?? []
+  const tableListQuery = useTableListQuery()
+  const tableList = tableListQuery.data?.payload.data ?? []
+  const tableListSortedByNumber = tableList.sort((a, b) => a.number - b.number)
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
@@ -226,7 +234,8 @@ export default function OrderTable() {
           tableList={tableListSortedByNumber}
           servingGuestByTableNumber={servingGuestByTableNumber}
         />
-        {/* <TableSkeleton /> */}
+        {orderListQuery.isPending && <TableSkeleton />}
+        {!orderListQuery.isPending &&
         <div className='rounded-md border'>
           <Table>
             <TableHeader>
@@ -261,6 +270,7 @@ export default function OrderTable() {
             </TableBody>
           </Table>
         </div>
+    }
         <div className='flex items-center justify-end space-x-2 py-4'>
           <div className='text-xs text-muted-foreground py-4 flex-1 '>
             Hiển thị <strong>{table.getPaginationRowModel().rows.length}</strong> trong{' '}
